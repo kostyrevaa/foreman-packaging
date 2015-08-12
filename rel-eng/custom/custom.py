@@ -66,6 +66,7 @@ class ForemanSourceStrategy(SourceStrategy):
         src_files = run_command("find %s -type f" %
               os.path.join(self.builder.rpmbuild_sourcedir, 'archive')).split("\n")
         for s in src_files:
+            debug("s: %s" % s)
             base_name = os.path.basename(s)
             debug("Downloaded file %s" % base_name)
             if ".tar" not in base_name and ".gem" not in base_name:
@@ -79,6 +80,8 @@ class ForemanSourceStrategy(SourceStrategy):
 
             # Add a line to replace in the spec for each source:
             source_regex = re.compile("^(source%s:\s*)(.+)$" % i, re.IGNORECASE)
+            debug("source_regex: %s" % source_regex)
+
             new_line = "Source%s: %s\n" % (i, base_name)
             replacements.append((source_regex, new_line))
             i += 1
@@ -119,16 +122,21 @@ class ForemanSourceStrategy(SourceStrategy):
         else:
             job_id = "lastSuccessfulBuild"
         job_url_base = "%s/job/%s/%s" % (url_base, job_name, job_id)
+        debug("job_url_base: %s" % job_url_base)
+
         json_url = "%s/api/json" % job_url_base
+        debug("json_url: %s" % json_url)
 
         job_info = json.loads(urlopen(json_url).read().decode("utf-8"))
         if "number" in job_info:
             job_id = job_info["number"]
+        debug("job_id: %s" % job_id)
 
         if "runs" in job_info:
             run_idx = 0
             for idx, run in enumerate(job_info["runs"]):
                 if run["number"] == job_id:
+                    debug("run_number: %s" % run["number"])
                     run_idx = idx
                     break
             job_url_base = job_info["runs"][run_idx]["url"]
@@ -138,6 +146,7 @@ class ForemanSourceStrategy(SourceStrategy):
         url = "%s/artifact/*zip*/archive.zip" % job_url_base
         debug("Fetching from %s" % url)
 
+        debug("self.builder.rpmbuild_sourcedir: %s" % self.builder.rpmbuild_sourcedir)
         (zip_path, zip_headers) = urlretrieve(url)
         zip_file = ZipFile(zip_path, 'r')
         try:
@@ -149,7 +158,7 @@ class ForemanSourceStrategy(SourceStrategy):
         for action in job_info["actions"]:
             if "lastBuiltRevision" in action:
                 gitrev = "git%s" % action["lastBuiltRevision"]["SHA1"][0:7]
-
+                debug("gitrev: %s" % gitrev)
         return gitrev
 
     """
